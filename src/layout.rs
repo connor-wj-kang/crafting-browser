@@ -1,9 +1,12 @@
-use std::fmt::{write, Display};
-
+use std::{
+    cell::RefCell,
+    fmt::{write, Display},
+    rc::Rc,
+};
 use wasm_bindgen::JsValue;
 use web_sys::{console, CanvasRenderingContext2d, HtmlCanvasElement};
 
-use crate::token::Token;
+use crate::html_parser::Node;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FontStyle {
@@ -74,55 +77,10 @@ impl<'text, 'context, 'canvas> Layout<'text, 'context, 'canvas> {
         }
     }
 
-    pub fn calc_display_list(mut self, tokens: &'text [Token]) -> Vec<DisplayInfo<'text>> {
-        tokens.iter().for_each(|token| self.consume_token(token));
+    pub fn calc_display_list(mut self, tree: Rc<RefCell<Node<'text>>>) -> Vec<DisplayInfo<'text>> {
+        self.recurse(tree);
         self.flush_line_buffer();
         self.display_list
-    }
-
-    fn consume_token(&mut self, token: &'text Token) {
-        match token {
-            Token::Text(text) => {
-                self.context.set_font(
-                    format!(
-                        "{} {} {}px serif",
-                        self.current_font_style, self.current_font_weight, self.current_font_size
-                    )
-                    .as_str(),
-                );
-
-                let space_width = self.context.measure_text(" ").unwrap().width();
-
-                text.split_whitespace().into_iter().for_each(|word| {
-                    let word_width = self.context.measure_text(word).unwrap().width();
-                    self.line_buffer.push(DisplayInfo {
-                        x: self.cursor_x,
-                        y: 0.0,
-                        text: word,
-                        font_style: self.current_font_style,
-                        font_size: self.current_font_size,
-                        font_weight: self.current_font_weight,
-                    });
-
-                    if self.cursor_x + word_width > self.canvas.width() as f64 - 40.0 {
-                        self.flush_line_buffer();
-                    } else {
-                        self.cursor_x += word_width + space_width;
-                    }
-                });
-            }
-            Token::Tag(tag) => match *tag {
-                "i" => self.current_font_style = FontStyle::Italic,
-                "/i" => self.current_font_style = FontStyle::Normal,
-                "b" => self.current_font_weight = FontWeight::Bold,
-                "/b" => self.current_font_weight = FontWeight::Normal,
-                "small" => self.current_font_size -= 4.0,
-                "/small" => self.current_font_size += 4.0,
-                "big" => self.current_font_size += 4.0,
-                "/big" => self.current_font_size -= 4.0,
-                _ => {}
-            },
-        }
     }
 
     fn flush_line_buffer(&mut self) {
@@ -164,5 +122,68 @@ impl<'text, 'context, 'canvas> Layout<'text, 'context, 'canvas> {
         self.cursor_x = 0.0;
         self.cursor_y = base_line + 1.25 * max_descent;
         self.line_buffer.clear();
+    }
+
+    fn open_tag(&mut self, tag: &'text str) {
+        match tag {
+            "i" => self.current_font_style = FontStyle::Italic,
+            "b" => self.current_font_weight = FontWeight::Bold,
+            "small" => self.current_font_size -= 4.0,
+            "big" => self.current_font_size += 4.0,
+            _ => {}
+        }
+    }
+
+    fn close_tag(&mut self, tag: &'text str) {
+        match tag {
+            "i" => self.current_font_style = FontStyle::Normal,
+            "b" => self.current_font_weight = FontWeight::Normal,
+            "small" => self.current_font_size += 4.0,
+            "big" => self.current_font_size -= 4.0,
+            _ => {}
+        }
+    }
+
+    pub fn recurse(&mut self, tree: Rc<RefCell<Node<'text>>>) {
+        match *tree.borrow() {
+            Node::Text(ref text) => {
+                let text = text.text;
+                self.context.set_font(
+                    format!(
+                        "{} {} {}px serif",
+                        self.current_font_style, self.current_font_weight, self.current_font_size
+                    )
+                    .as_str(),
+                );
+
+                let space_width = self.context.measure_text(" ").unwrap().width();
+
+                text.split_whitespace().into_iter().for_each(|word| {
+                    let word_width = self.context.measure_text(word).unwrap().width();
+                    self.line_buffer.push(DisplayInfo {
+                        x: self.cursor_x,
+                        y: 0.0,
+                        text: word,
+                        font_style: self.current_font_style,
+                        font_size: self.current_font_size,
+                        font_weight: self.current_font_weight,
+                    });
+
+                    if self.cursor_x + word_width > self.canvas.width() as f64 - 40.0 {
+                        self.flush_line_buffer();
+                    } else {
+                        self.cursor_x += word_width + space_width;
+                    }
+                });
+            }
+            Node::Element(ref element) => {
+                self.open_tag(element.tag);
+                element
+                    .children
+                    .iter()
+                    .for_each(|child| self.recurse(child.clone()));
+                self.close_tag(element.tag);
+            }
+        }
     }
 }
