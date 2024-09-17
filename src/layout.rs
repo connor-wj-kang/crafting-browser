@@ -6,7 +6,7 @@ use std::{
 use wasm_bindgen::JsValue;
 use web_sys::{console, CanvasRenderingContext2d, HtmlCanvasElement};
 
-use crate::html_parser::Node;
+use crate::html_parser1::Node;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FontStyle {

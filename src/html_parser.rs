@@ -1,9 +1,10 @@
 use lazy_static::lazy_static;
 use std::{
-    cell::RefCell,
+    borrow::Borrow,
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
-    fmt::{write, Display},
-    rc::Rc,
+    fmt::{self, write, Display},
+    rc::{Rc, Weak},
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -11,63 +12,79 @@ lazy_static! {
     static ref HEAD_TAGS: HashSet<&'static str> = HashSet::from([
         "base", "basefont", "bgsound", "noscript", "link", "meta", "title", "style", "script",
     ]);
+    static ref SELF_COLSING_TAG: HashSet<&'static str> = HashSet::from([
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
+        "source", "track", "wbr",
+    ]);
 }
 
-pub struct Text<'text> {
-    pub text: &'text str,
-    pub parent: Option<Rc<RefCell<Node<'text>>>>,
+#[derive(Debug)]
+enum NodeData<'html> {
+    Text {
+        text: &'html str,
+    },
+    Element {
+        tag: &'html str,
+        attributes: HashMap<&'html str, &'html str>,
+    },
 }
 
-pub struct Element<'tag> {
-    pub tag: &'tag str,
-    pub children: Vec<Rc<RefCell<Node<'tag>>>>,
-    pub attributes: HashMap<&'tag str, &'tag str>,
-    pub parent: Option<Rc<RefCell<Node<'tag>>>>,
+pub struct Node<'html> {
+    parent: Cell<Option<Weak<Node<'html>>>>,
+    children: RefCell<Vec<Rc<Node<'html>>>>,
+    data: NodeData<'html>,
 }
 
-pub enum Node<'body> {
-    Text(Text<'body>),
-    Element(Element<'body>),
+impl<'html> Node<'html> {
+    fn new(data: NodeData<'html>, parent: Option<Weak<Node<'html>>>) -> Rc<Self> {
+        Rc::new(Self {
+            parent: Cell::new(parent),
+            children: RefCell::new(Vec::new()),
+            data,
+        })
+    }
 }
 
-impl<'body> Display for Node<'body> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Text(text) => write!(f, "{}", text.text)?,
-            Self::Element(element) => {
-                write!(f, "<{}>", element.tag)?;
-                for child in element.children.iter() {
-                    write!(f, "{}", child.borrow())?;
+impl<'html> fmt::Display for Node<'html> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.data {
+            NodeData::Text { text } => write!(f, "{text}")?,
+            NodeData::Element { tag, attributes } => {
+                write!(f, "<{tag}>")?;
+                for child in self.children.borrow().iter() {
+                    write!(f, "{child}")?;
                 }
-                write!(f, "</{}>", element.tag)?;
+                write!(f, "<{tag}/>")?;
             }
-        };
+        }
 
         Ok(())
     }
 }
 
-pub struct HtmlParser<'body> {
-    body: &'body str,
-    self_closing_tag: HashSet<&'static str>,
-    unfinsihed: Vec<Rc<RefCell<Node<'body>>>>,
+impl<'html> fmt::Debug for Node<'html> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Node")
+            .field("data", &self.data)
+            .field("children", &self.children)
+            .finish()
+    }
 }
 
-impl<'body> HtmlParser<'body> {
-    pub fn new(body: &'body str) -> Self {
-        let self_closing_tag = HashSet::from([
-            "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
-            "source", "track", "wbr",
-        ]);
+pub struct HtmlParser<'html> {
+    body: &'html str,
+    unfinished: Vec<Rc<Node<'html>>>,
+}
 
+impl<'html> HtmlParser<'html> {
+    pub fn new(body: &'html str) -> Self {
         Self {
             body,
-            unfinsihed: Vec::new(),
-            self_closing_tag,
+            unfinished: Vec::new(),
         }
     }
 
-    pub fn parse(&mut self) -> Rc<RefCell<Node<'body>>> {
+    pub fn parse(&mut self) -> Rc<Node<'html>> {
         let mut start = 0;
         let mut end = 0;
         let mut in_tag = false;
@@ -97,122 +114,80 @@ impl<'body> HtmlParser<'body> {
         self.finish()
     }
 
-    fn add_text(&mut self, text: &'body str) {
+    fn add_text(&mut self, text: &'html str) {
         if text.trim().is_empty() {
             return;
         }
 
         self.implicit_tags("");
 
-        let parent = self.unfinsihed.last();
-
-        let node = Rc::new(RefCell::new(Node::Text(Text {
-            text,
-            parent: parent.cloned(),
-        })));
-
-        if let Some(parent) = parent {
-            if let Node::Element(ref mut element) = *parent.borrow_mut() {
-                element.children.push(node)
-            };
-        }
+        let parent = self.unfinished.last().unwrap();
+        let node = Node::new(NodeData::Text { text }, Some(Rc::downgrade(parent)));
+        parent.children.borrow_mut().push(node);
     }
 
-    fn add_tag(&mut self, tag: &'body str) {
+    fn add_tag(&mut self, tag: &'html str) {
         let (tag, attributes) = self.get_attributes(tag);
-
-        if tag.starts_with("!") {
-            return;
-        }
-
         self.implicit_tags(tag);
 
-        if tag.starts_with("/") {
-            if self.unfinsihed.len() == 1 {
-                return;
-            }
-
-            let node = self.unfinsihed.pop().unwrap();
-            let parent = self.unfinsihed.last().unwrap();
-            if let Node::Element(ref mut element) = *parent.borrow_mut() {
-                element.children.push(node)
-            };
+        if tag.starts_with("/") && self.unfinished.len() > 1 {
+            let node = self.unfinished.pop().unwrap();
+            let parent = self.unfinished.last().unwrap();
+            parent.children.borrow_mut().push(node);
             return;
         }
 
-        if self.self_closing_tag.contains(tag) {
-            let parent = self.unfinsihed.last();
-            let node = Rc::new(RefCell::new(Node::Element(Element {
-                tag,
-                children: Vec::new(),
-                attributes,
-                parent: parent.cloned(),
-            })));
-            if let Node::Element(ref mut element) = *parent.unwrap().borrow_mut() {
-                element.children.push(node)
-            };
+        if SELF_COLSING_TAG.contains(tag) {
+            let parent = self.unfinished.last().unwrap();
+            let node = Node::new(
+                NodeData::Element { tag, attributes },
+                Some(Rc::downgrade(parent)),
+            );
+            parent.children.borrow_mut().push(node);
             return;
         }
 
-        let parent = self.unfinsihed.last();
-        let node = Rc::new(RefCell::new(Node::Element(Element {
-            tag,
-            children: Vec::new(),
-            attributes,
-            parent: parent.cloned(),
-        })));
-        self.unfinsihed.push(node);
+        let parent = self
+            .unfinished
+            .last()
+            .map(|rc_parent| Rc::downgrade(rc_parent));
+        let node = Node::new(NodeData::Element { tag, attributes }, parent);
+        self.unfinished.push(node);
     }
 
-    fn finish(&mut self) -> Rc<RefCell<Node<'body>>> {
-        if !self.unfinsihed.is_empty() {
-            self.implicit_tags("");
-        }
-
-        while self.unfinsihed.len() > 1 {
-            let node = self.unfinsihed.pop().unwrap();
-            let parent = self.unfinsihed.last().unwrap();
-            if let Node::Element(ref mut element) = *parent.borrow_mut() {
-                element.children.push(node)
-            };
-        }
-
-        self.unfinsihed.pop().unwrap()
-    }
-
-    fn get_attributes(&self, text: &'body str) -> (&'body str, HashMap<&'body str, &'body str>) {
-        let parts = text.split_whitespace().collect::<Vec<&str>>();
-        let tag = parts.get(0).unwrap();
+    fn get_attributes(&self, text: &'html str) -> (&'html str, HashMap<&'html str, &'html str>) {
+        let mut parts = text.split_whitespace();
+        let tag = parts.next().unwrap();
         let mut attributes = HashMap::new();
 
-        parts.iter().skip(1).for_each(|attribute_pair| {
-            if attribute_pair.contains("=") {
-                let mut key_and_value = attribute_pair.splitn(2, "=");
-                let key = key_and_value.next().unwrap();
-                let mut value = key_and_value.next().unwrap();
+        parts.for_each(|attrpair| {
+            if attrpair.contains("=") {
+                let mut key_value = attrpair.splitn(2, "=");
+                let key = key_value.next().unwrap();
+                let mut value = key_value.next().unwrap();
                 if value.len() > 2 && (value.starts_with("'") || value.starts_with("\"")) {
                     value = &value[1..value.len() - 1];
                 }
                 attributes.insert(key, value);
             } else {
-                attributes.insert(attribute_pair, "");
+                attributes.insert(attrpair, "");
             }
         });
 
         (tag, attributes)
     }
 
-    fn implicit_tags(&mut self, tag: &'body str) {
+    fn implicit_tags(&mut self, tag: &'html str) {
         loop {
             let open_tags = self
-                .unfinsihed
+                .unfinished
                 .iter()
-                .map(|open_tag| {
-                    if let Node::Element(ref element) = *open_tag.borrow() {
-                        element.tag
-                    } else {
-                        ""
+                .map(|node| {
+                    if let NodeData::Element { tag, .. } = *node.data.borrow() {
+                        return tag;
                     }
+
+                    unreachable!()
                 })
                 .collect::<Vec<&str>>();
 
@@ -247,5 +222,19 @@ impl<'body> HtmlParser<'body> {
 
             break;
         }
+    }
+
+    fn finish(&mut self) -> Rc<Node<'html>> {
+        if !self.unfinished.is_empty() {
+            self.implicit_tags("");
+        }
+
+        while self.unfinished.len() > 1 {
+            let node = self.unfinished.pop().unwrap();
+            let parent = self.unfinished.last().unwrap();
+            parent.children.borrow_mut().push(node);
+        }
+
+        self.unfinished.pop().unwrap()
     }
 }
