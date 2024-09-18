@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-enum NodeData<'html> {
+pub enum NodeData<'html> {
     Text {
         text: &'html str,
     },
@@ -30,15 +30,15 @@ enum NodeData<'html> {
 }
 
 pub struct Node<'html> {
-    parent: Cell<Option<Weak<Node<'html>>>>,
-    children: RefCell<Vec<Rc<Node<'html>>>>,
-    data: NodeData<'html>,
+    pub parent: Option<Weak<Node<'html>>>,
+    pub children: RefCell<Vec<Rc<Node<'html>>>>,
+    pub data: NodeData<'html>,
 }
 
 impl<'html> Node<'html> {
     fn new(data: NodeData<'html>, parent: Option<Weak<Node<'html>>>) -> Rc<Self> {
         Rc::new(Self {
-            parent: Cell::new(parent),
+            parent,
             children: RefCell::new(Vec::new()),
             data,
         })
@@ -49,7 +49,7 @@ impl<'html> fmt::Display for Node<'html> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.data {
             NodeData::Text { text } => write!(f, "{text}")?,
-            NodeData::Element { tag, attributes } => {
+            NodeData::Element { tag, .. } => {
                 write!(f, "<{tag}>")?;
                 for child in self.children.borrow().iter() {
                     write!(f, "{child}")?;
