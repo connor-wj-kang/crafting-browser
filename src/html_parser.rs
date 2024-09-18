@@ -54,7 +54,7 @@ impl<'html> fmt::Display for Node<'html> {
                 for child in self.children.borrow().iter() {
                     write!(f, "{child}")?;
                 }
-                write!(f, "<{tag}/>")?;
+                write!(f, "</{tag}>")?;
             }
         }
 
