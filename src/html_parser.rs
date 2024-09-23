@@ -25,12 +25,13 @@ pub enum NodeData<'html> {
     },
     Element {
         tag: &'html str,
-        attributes: HashMap<&'html str, &'html str>,
+        attributes: HashMap<String, String>,
     },
 }
 
 pub struct Node<'html> {
     pub parent: Option<Weak<Node<'html>>>,
+    pub style: RefCell<HashMap<String, String>>,
     pub children: RefCell<Vec<Rc<Node<'html>>>>,
     pub data: NodeData<'html>,
 }
@@ -39,6 +40,7 @@ impl<'html> Node<'html> {
     fn new(data: NodeData<'html>, parent: Option<Weak<Node<'html>>>) -> Rc<Self> {
         Rc::new(Self {
             parent,
+            style: RefCell::new(HashMap::new()),
             children: RefCell::new(Vec::new()),
             data,
         })
@@ -155,7 +157,7 @@ impl<'html> HtmlParser<'html> {
         self.unfinished.push(node);
     }
 
-    fn get_attributes(&self, text: &'html str) -> (&'html str, HashMap<&'html str, &'html str>) {
+    fn get_attributes(&self, text: &'html str) -> (&'html str, HashMap<String, String>) {
         let mut parts = text.split_whitespace();
         let tag = parts.next().unwrap();
         let mut attributes = HashMap::new();
@@ -168,9 +170,9 @@ impl<'html> HtmlParser<'html> {
                 if value.len() > 2 && (value.starts_with("'") || value.starts_with("\"")) {
                     value = &value[1..value.len() - 1];
                 }
-                attributes.insert(key, value);
+                attributes.insert(key.to_lowercase(), value.to_string());
             } else {
-                attributes.insert(attrpair, "");
+                attributes.insert(attrpair.to_lowercase(), String::new());
             }
         });
 
