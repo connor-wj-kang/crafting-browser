@@ -1,4 +1,5 @@
 mod browser;
+mod css_parser;
 mod font;
 mod paint_command;
 extern crate sdl2;

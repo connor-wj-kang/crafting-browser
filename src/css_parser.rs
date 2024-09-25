@@ -3,7 +3,7 @@ use core::fmt;
 use lazy_static::lazy_static;
 use std::{
     borrow::{Borrow, BorrowMut},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::format,
     rc::Rc,
 };
@@ -18,49 +18,76 @@ lazy_static! {
 }
 
 pub struct CssParser<'css> {
-    s: &'css str,
-    i: usize,
+    source: &'css str,
+    current_index: usize,
 }
 
 impl<'css> CssParser<'css> {
     pub fn new(s: &'css str) -> Self {
-        Self { s, i: 0 }
+        Self {
+            source: s,
+            current_index: 0,
+        }
     }
 
     fn whitespace(&mut self) {
-        while self.i < self.s.len() && self.s.as_bytes()[self.i].is_ascii_whitespace() {
-            self.i += 1;
+        while self.current_index < self.source.len()
+            && self.source.as_bytes()[self.current_index].is_ascii_whitespace()
+        {
+            self.current_index += 1;
         }
     }
 
     fn literal(&mut self, literal: char) -> Result<(), String> {
-        if !(self.i < self.s.len() && self.s.as_bytes()[self.i] == literal as u8) {
+        if !(self.current_index < self.source.len()
+            && self.source.as_bytes()[self.current_index] == literal as u8)
+        {
             return Err(String::from("Parsing Error"));
         }
 
-        self.i += 1;
+        self.current_index += 1;
 
         Ok(())
     }
 
     fn word(&mut self) -> Result<&'css str, String> {
-        let start = self.i;
-        let symbols = [b'#', b'-', b'.', b'%'];
+        let mut in_quote = false;
+        let start = self.current_index;
+        let symbols = [',', '/', '#', '-', '.', '%', '(', ')', '"', '\''];
 
-        while self.i < self.s.len() {
-            let current_char = self.s.as_bytes()[self.i];
-            if current_char.is_ascii_alphanumeric() || symbols.contains(&current_char) {
-                self.i += 1;
+        while self.current_index < self.source.len() {
+            let current_char = self.source.as_bytes()[self.current_index] as char;
+
+            if current_char == '\'' {
+                in_quote = !in_quote;
+            }
+
+            if current_char.is_ascii_alphanumeric()
+                || symbols.contains(&current_char)
+                || (in_quote && current_char == ':')
+            {
+                self.current_index += 1;
             } else {
                 break;
             }
         }
 
-        if !(self.i > start) {
+        if !(self.current_index > start) {
             Err(String::from("Parsing Error"))
         } else {
-            Ok(&self.s[start..self.i])
+            Ok(&self.source[start..self.current_index])
         }
+    }
+
+    fn until_chars(&mut self, chars: &[char]) -> &'css str {
+        let start = self.current_index;
+        while self.current_index < self.source.len()
+            && !chars.contains(&(self.source.as_bytes()[self.current_index] as char))
+        {
+            self.current_index += 1;
+        }
+
+        &self.source[start..self.current_index]
     }
 
     // lower
@@ -74,12 +101,12 @@ impl<'css> CssParser<'css> {
     }
 
     fn ignor_until(&mut self, chars: &[char]) -> Option<char> {
-        while self.i < self.s.len() {
-            let current_char = self.s.as_bytes()[self.i];
+        while self.current_index < self.source.len() {
+            let current_char = self.source.as_bytes()[self.current_index];
             if chars.contains(&(current_char as char)) {
                 return Some(current_char as char);
             }
-            self.i += 1;
+            self.current_index += 1;
         }
 
         None
@@ -87,7 +114,9 @@ impl<'css> CssParser<'css> {
 
     fn body(&mut self) -> Result<HashMap<&'css str, &'css str>, String> {
         let mut pairs = HashMap::new();
-        while self.i < self.s.len() && self.s.as_bytes()[self.i] != b'}' {
+        while self.current_index < self.source.len()
+            && self.source.as_bytes()[self.current_index] != b'}'
+        {
             let mut run_parsing = || -> Result<(), String> {
                 let (prop, val) = self.pair()?;
                 pairs.insert(prop, val);
@@ -115,7 +144,9 @@ impl<'css> CssParser<'css> {
         let mut out: Box<dyn Selector> =
             Box::new(TagSelector::new(self.word().unwrap().to_lowercase()));
         self.whitespace();
-        while self.i < self.s.len() && self.s.as_bytes()[self.i] != b'{' {
+        while self.current_index < self.source.len()
+            && self.source.as_bytes()[self.current_index] != b'{'
+        {
             let tag = self.word().unwrap();
             let descendant = TagSelector::new(tag.to_lowercase());
             out = Box::new(DescendantSeletor::new(out, Box::new(descendant)));
@@ -126,7 +157,7 @@ impl<'css> CssParser<'css> {
 
     pub fn parse(&mut self) -> Vec<(Box<dyn Selector>, HashMap<&'css str, &'css str>)> {
         let mut rules = Vec::new();
-        while self.i < self.s.len() {
+        while self.current_index < self.source.len() {
             let mut run_pasing = || -> Result<(), String> {
                 self.whitespace();
                 let selector = self.selector();
