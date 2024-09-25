@@ -1,7 +1,9 @@
 mod browser;
 mod css_parser;
 mod font;
+mod html_parser;
 mod paint_command;
+mod layout_new;
 extern crate sdl2;
 
 // use sdl2::event::Event;

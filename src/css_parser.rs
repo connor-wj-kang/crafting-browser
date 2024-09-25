@@ -91,12 +91,12 @@ impl<'css> CssParser<'css> {
     }
 
     // lower
-    fn pair(&mut self) -> Result<(&'css str, &'css str), String> {
+    fn pair(&mut self, until: &[char]) -> Result<(&'css str, &'css str), String> {
         let prop = self.word()?;
         self.whitespace();
         self.literal(':')?;
         self.whitespace();
-        let val = self.word()?;
+        let val = self.until_chars(until);
         Ok((prop, val))
     }
 
@@ -118,7 +118,7 @@ impl<'css> CssParser<'css> {
             && self.source.as_bytes()[self.current_index] != b'}'
         {
             let mut run_parsing = || -> Result<(), String> {
-                let (prop, val) = self.pair()?;
+                let (prop, val) = self.pair(&[';', '}'])?;
                 pairs.insert(prop, val);
                 self.whitespace();
                 self.literal(';')?;
