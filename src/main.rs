@@ -1,9 +1,11 @@
+use html_parser::HtmlParser;
+
+mod accessibility;
 mod browser;
 mod css_parser;
-mod font;
 mod html_parser;
 mod paint_command;
-mod layout_new;
+
 extern crate sdl2;
 
 // use sdl2::event::Event;
@@ -51,4 +53,22 @@ extern crate sdl2;
 //     }
 // }
 
-fn main() {}
+fn main() {
+    let html = r#"
+<header>
+<h1 class="title">Laying Out Pages</h1>
+<a href="https://twitter.com/browserbook">Twitter</a>
+<a href="https://browserbook.substack.com/">Blog</a>
+<a href="https://patreon.com/browserengineering">Patreon</a>
+<a href="https://github.com/browserengineering/book/discussions">Discussions</a>
+</header>
+
+<nav class="links">
+  <a href="index.html" title="Table of Contents">Web Browser Engineering</a>
+  <a rel="prev" title="Previous chapter" href="html.html">&lt;</a>
+  <a rel="next" title="Next chapter" href="styles.html">&gt;</a>
+</nav>"#;
+
+    let a = HtmlParser::new(html).parse();
+    a.paint_tree(0);
+}

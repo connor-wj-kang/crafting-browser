@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ptr::metadata, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 use skia_safe::{utils::CustomTypefaceBuilder, Font, Typeface};

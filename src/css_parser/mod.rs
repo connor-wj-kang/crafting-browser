@@ -1,12 +1,12 @@
-use crate::html_parser::{Node, NodeData};
+mod descendant_seletor;
+mod tag_selector;
+
+use crate::html_parser::html_node::HtmlNode;
 use core::fmt;
+use descendant_seletor::DescendantSeletor;
 use lazy_static::lazy_static;
-use std::{
-    borrow::{Borrow, BorrowMut},
-    collections::{HashMap, HashSet},
-    fmt::format,
-    rc::Rc,
-};
+use std::{collections::HashMap, rc::Rc};
+use tag_selector::TagSelector;
 
 lazy_static! {
     pub static ref INHERITED_PROPERTIES: HashMap<&'static str, &'static str> = HashMap::from([
@@ -15,6 +15,11 @@ lazy_static! {
         ("font-weight", "normal"),
         ("color", "black")
     ]);
+}
+
+pub trait Selector: fmt::Debug {
+    fn matches<'html>(&self, node: Rc<HtmlNode<'html>>) -> bool;
+    fn priority(&self) -> usize;
 }
 
 pub struct CssParser<'css> {
@@ -186,100 +191,27 @@ impl<'css> CssParser<'css> {
     }
 }
 
-pub trait Selector: fmt::Debug {
-    fn matches<'html>(&self, node: Rc<Node<'html>>) -> bool;
-    fn priority(&self) -> usize;
-}
-
-#[derive(Debug)]
-pub struct TagSelector {
-    tag: String,
-    priority: usize,
-}
-
-impl TagSelector {
-    fn new(tag: String) -> Self {
-        Self { tag, priority: 1 }
-    }
-}
-
-impl Selector for TagSelector {
-    fn matches<'html>(&self, node: Rc<Node<'html>>) -> bool {
-        if let NodeData::Element { tag, .. } = node.data {
-            self.tag == tag
-        } else {
-            false
-        }
-    }
-
-    fn priority(&self) -> usize {
-        self.priority
-    }
-}
-
-#[derive(Debug)]
-pub struct DescendantSeletor {
-    ancestor: Box<dyn Selector>,
-    descendant: Box<dyn Selector>,
-    priority: usize,
-}
-
-impl DescendantSeletor {
-    fn new(ancestor: Box<dyn Selector>, descendant: Box<dyn Selector>) -> Self {
-        let priority = ancestor.priority() + descendant.priority();
-
-        Self {
-            ancestor,
-            descendant,
-            priority,
-        }
-    }
-}
-
-impl Selector for DescendantSeletor {
-    fn matches<'html>(&self, node: Rc<Node<'html>>) -> bool {
-        let mut node = node;
-        if !self.descendant.matches(node.clone()) {
-            return false;
-        }
-
-        while let Some(ref parent) = node.parent {
-            if self.ancestor.matches(parent.upgrade().unwrap()) {
-                return true;
-            }
-
-            node = parent.upgrade().unwrap();
-        }
-
-        false
-    }
-
-    fn priority(&self) -> usize {
-        self.priority
-    }
-}
-
 pub fn style<'html>(
-    node: Rc<Node<'html>>,
+    node: Rc<HtmlNode<'html>>,
     rules: &Vec<(Box<dyn Selector>, HashMap<&'html str, &'html str>)>,
 ) {
     INHERITED_PROPERTIES
         .iter()
         .for_each(|(property, default_value)| {
             if let Some(ref parent) = node.parent {
-                node.style.borrow_mut().insert(
+                node.styles.borrow_mut().insert(
                     property.to_string(),
                     parent
                         .upgrade()
                         .unwrap()
-                        .style
+                        .styles
                         .borrow()
                         .get(*property)
                         .unwrap()
                         .clone(),
                 );
             } else {
-                node.style
+                node.styles
                     .borrow_mut()
                     .insert(property.to_string(), default_value.to_string());
             }
@@ -290,33 +222,36 @@ pub fn style<'html>(
             return;
         }
         body.iter().for_each(|(property, value)| {
-            node.style
+            node.styles
                 .borrow_mut()
                 .insert(property.to_string(), value.to_string());
         });
     });
 
-    match node.data {
-        NodeData::Element { ref attributes, .. } if attributes.contains_key("style") => {
-            let pairs = CssParser::new(attributes.get("style").unwrap())
-                .body()
-                .unwrap();
-            pairs.iter().for_each(|(property, value)| {
-                node.style
-                    .borrow_mut()
-                    .insert(property.to_string(), value.to_string());
-            });
-        }
-        _ => {}
-    };
+    if let Some(attributes) = node.get_attributes() {
+        let pairs = CssParser::new(attributes.get("style").unwrap())
+            .body()
+            .unwrap();
+        pairs.iter().for_each(|(property, value)| {
+            node.styles
+                .borrow_mut()
+                .insert(property.to_string(), value.to_string());
+        });
+    }
 
-    if node.style.borrow().get("font-size").unwrap().ends_with("%") {
+    if node
+        .styles
+        .borrow()
+        .get("font-size")
+        .unwrap()
+        .ends_with("%")
+    {
         let parent_font_size;
         if let Some(ref parent) = node.parent {
             parent_font_size = parent
                 .upgrade()
                 .unwrap()
-                .style
+                .styles
                 .borrow()
                 .get("font-size")
                 .unwrap()
@@ -324,13 +259,13 @@ pub fn style<'html>(
         } else {
             parent_font_size = INHERITED_PROPERTIES.get("font-size").unwrap().to_string();
         }
-        let node_style = node.style.borrow();
+        let node_style = node.styles.borrow();
         let font_size = node_style.get("font-size").unwrap();
         let node_pct = font_size[0..font_size.len() - 1].parse::<f64>().unwrap() / 100.0;
         let parent_px = parent_font_size[0..parent_font_size.len() - 2]
             .parse::<f64>()
             .unwrap();
-        node.style.borrow_mut().insert(
+        node.styles.borrow_mut().insert(
             "font-size".to_string(),
             format!("{}px", node_pct * parent_px),
         );

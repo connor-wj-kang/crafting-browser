@@ -1,11 +1,10 @@
 use crate::{
-    font::{get_font, FONTS},
+    font::{get_font, linespace},
     html_parser::{Node, NodeData},
 };
-use core::fmt;
 use lazy_static::lazy_static;
-use sdl2::hint::set_with_priority;
-use skia_safe::{Font, Paint};
+use sdl2::hint::set_video_minimize_on_focus_loss;
+use skia_safe::{Font, Rect};
 use std::{
     borrow::Borrow,
     cell::{Cell, Ref, RefCell},
@@ -17,101 +16,53 @@ static WIDTH: f32 = 800.0;
 static HEIGHT: f32 = 600.0;
 static HSTEP: f32 = 13.0;
 static VSTEP: f32 = 18.0;
+static INPUT_WIDTH_PX: f32 = 200.0;
+static BLOCK_ELEMENTS: [&'static str; 37] = [
+    "html",
+    "body",
+    "article",
+    "section",
+    "nav",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hgroup",
+    "header",
+    "footer",
+    "address",
+    "p",
+    "hr",
+    "pre",
+    "blockquote",
+    "ol",
+    "ul",
+    "menu",
+    "li",
+    "dl",
+    "dt",
+    "dd",
+    "figure",
+    "figcaption",
+    "main",
+    "div",
+    "table",
+    "form",
+    "fieldset",
+    "legend",
+    "details",
+    "summary",
+];
 
-lazy_static! {
-    static ref BLOCK_ELEMENTS: HashSet<&'static str> = HashSet::from([
-        "html",
-        "body",
-        "article",
-        "section",
-        "nav",
-        "aside",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "hgroup",
-        "header",
-        "footer",
-        "address",
-        "p",
-        "hr",
-        "pre",
-        "blockquote",
-        "ol",
-        "ul",
-        "menu",
-        "li",
-        "dl",
-        "dt",
-        "dd",
-        "figure",
-        "figcaption",
-        "main",
-        "div",
-        "table",
-        "form",
-        "fieldset",
-        "legend",
-        "details",
-        "summary"
-    ]);
-}
+struct Frame {}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum LayoutMode {
     Inline,
     Block,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FontWeight {
-    Normal,
-    Bold,
-}
-
-impl From<&'_ str> for FontWeight {
-    fn from(value: &'_ str) -> Self {
-        match value {
-            "normal" => FontWeight::Normal,
-            _ => FontWeight::Bold,
-        }
-    }
-}
-
-impl fmt::Display for FontWeight {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            Self::Normal => write!(f, "normal"),
-            Self::Bold => write!(f, "bold"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FontStyle {
-    Normal,
-    Italic,
-}
-
-impl From<&'_ str> for FontStyle {
-    fn from(value: &'_ str) -> Self {
-        match value {
-            "normal" => FontStyle::Normal,
-            _ => FontStyle::Italic,
-        }
-    }
-}
-
-impl fmt::Display for FontStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            Self::Normal => write!(f, "normal"),
-            Self::Italic => write!(f, "italic"),
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -120,28 +71,19 @@ struct Dimension {
     y: f32,
     width: f32,
     height: f32,
+    zoom: f32,
 }
 
 impl Dimension {
-    fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+    fn new(x: f32, y: f32, width: f32, height: f32, zoom: f32) -> Self {
         Self {
             x,
             y,
             width,
             height,
+            zoom,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct DisplayInfo<'html> {
-    pub x: f32,
-    pub y: f32,
-    pub text: &'html str,
-    pub size: f32,
-    pub style: FontStyle,
-    pub weight: FontWeight,
-    pub color: String,
 }
 
 pub trait Layout<'html>: 'html {
@@ -157,18 +99,11 @@ pub struct BlockLayout<'html> {
     node: Weak<Node<'html>>,
     parent: Weak<dyn Layout<'html> + 'html>,
     previous: Option<Weak<BlockLayout<'html>>>,
+    frame: Weak<Frame>,
     children: RefCell<Vec<Rc<LineLayout<'html>>>>,
-    x: Cell<f32>,
-    y: Cell<f32>,
-    width: Cell<f32>,
-    height: Cell<f32>,
+    dimension: RefCell<Dimension>,
     cursor_x: Cell<f32>,
     cursor_y: Cell<f32>,
-    weight: Cell<FontWeight>,
-    style: Cell<FontStyle>,
-    size: Cell<f32>,
-    line: RefCell<Vec<DisplayInfo<'html>>>,
-    display_list: RefCell<Vec<DisplayInfo<'html>>>,
 }
 
 impl<'html> BlockLayout<'html> {
@@ -176,44 +111,41 @@ impl<'html> BlockLayout<'html> {
         node: Weak<Node<'html>>,
         parent: Weak<dyn Layout<'html> + 'html>,
         previous: Option<Weak<BlockLayout<'html>>>,
+        frame: Weak<Frame>,
     ) -> Rc<Self> {
         Rc::new(Self {
             node,
             parent,
             previous,
+            frame,
             children: RefCell::new(Vec::new()),
-            x: Cell::new(0.0),
-            y: Cell::new(0.0),
-            width: Cell::new(0.0),
-            height: Cell::new(0.0),
+            dimension: RefCell::new(Dimension::default()),
             cursor_x: Cell::new(0.0),
             cursor_y: Cell::new(0.0),
-            weight: Cell::new(FontWeight::Normal),
-            style: Cell::new(FontStyle::Normal),
-            size: Cell::new(12.0),
-            line: RefCell::new(Vec::new()),
-            display_list: RefCell::new(Vec::new()),
         })
     }
 
     fn layout_mode(&self) -> LayoutMode {
         use LayoutMode::*;
+        let node = self.node.upgrade().unwrap();
 
-        if let NodeData::Text { .. } = self.node.data {
+        if node.is_text_node() {
             return Inline;
         }
 
-        if self.node.children.borrow().iter().any(|child| {
-            if let NodeData::Element { tag, .. } = child.data {
-                BLOCK_ELEMENTS.contains(tag)
-            } else {
-                false
+        if !node.children.borrow().is_empty() {
+            for child in node.children.borrow().iter() {
+                if child.is_text_node() {
+                    continue;
+                }
+                if BLOCK_ELEMENTS.contains(&child.get_tag().unwrap()) {
+                    return Block;
+                }
             }
-        }) {
-            return Block;
+            return Inline;
         }
 
-        if !self.node.children.borrow().is_empty() {
+        if ["input", "img", "iframe"].contains(&node.get_tag().unwrap()) {
             return Inline;
         }
 
@@ -230,7 +162,7 @@ impl<'html> BlockLayout<'html> {
         let font = get_font(size, weight, style);
         let width = font.measure_str(word, None).1.width();
 
-        if self.cursor_x.get() + width > self.width.get() {
+        if self.cursor_x.get() + width > self.dimension.borrow().width {
             self.new_line();
         }
 
@@ -241,13 +173,38 @@ impl<'html> BlockLayout<'html> {
             .borrow()
             .last()
             .map(|word| Rc::downgrade(word));
-        let text = TextLayout::new(node, word, Some(Rc::downgrade(line)), previous_word);
+        let text = TextLayout::new(node, word, Rc::downgrade(line), previous_word);
         line.children.borrow_mut().push(text);
         self.cursor_x
             .set(self.cursor_x.get() + width + font.measure_str(" ", None).1.width());
     }
 
-    fn new_line(&self) {}
+    fn new_line(self: Rc<Self>) {
+        self.cursor_x.set(self.dimension.borrow().x);
+        let last_line = self
+            .children
+            .borrow()
+            .last()
+            .map(|line| Rc::downgrade(line));
+        let new_line = LineLayout::new(self.node.clone(), Rc::downgrade(&self), last_line);
+        self.children.borrow_mut().push(new_line);
+    }
+
+    fn self_rect(&self) -> Rect {
+        let dimension = self.dimension.borrow();
+        Rect::new(
+            dimension.x,
+            dimension.y,
+            dimension.x + dimension.width,
+            dimension.y + dimension.height,
+        )
+    }
+
+    fn should_paint(&self) -> bool {
+        let node = self.node.upgrade().unwrap();
+        node.is_text_node()
+            || ["input", "button", "img", "iframe"].contains(&node.get_tag().unwrap())
+    }
 
     fn flush(&self) {
         if self.line.borrow().is_empty() {
@@ -495,88 +452,6 @@ impl<'html> Layout<'html> for DocumentLayout<'html> {
     }
 }
 
-pub trait Drawable<'html>: 'html {
-    fn execute(&self, scroll: f32);
-}
-
-pub struct DrawRect {
-    top: f32,
-    left: f32,
-    bottom: f32,
-    right: f32,
-    color: String,
-}
-
-impl DrawRect {
-    pub fn new(x1: f32, y1: f32, x2: f32, y2: f32, color: String) -> Self {
-        Self {
-            top: y1,
-            left: x1,
-            bottom: y2,
-            right: x2,
-            color,
-        }
-    }
-}
-
-impl<'html> Drawable<'html> for DrawRect {
-    fn execute(&self, scroll: f32) {
-        let context = CONTEXT.with(|context| context.clone());
-        context.set_fill_style(JsValue::from_str(&self.color).as_ref());
-        context.fill_rect(
-            self.left,
-            self.top - scroll,
-            self.right - self.left,
-            self.bottom - self.top,
-        );
-    }
-}
-
-pub struct DrawText<'html> {
-    top: f32,
-    left: f32,
-    text: &'html str,
-    weight: FontWeight,
-    style: FontStyle,
-    size: f32,
-    color: String,
-}
-
-impl<'html> DrawText<'html> {
-    pub fn new(
-        x1: f32,
-        y1: f32,
-        text: &'html str,
-        weight: FontWeight,
-        style: FontStyle,
-        size: f32,
-        color: String,
-    ) -> Self {
-        Self {
-            top: y1,
-            left: x1,
-            text,
-            weight,
-            size,
-            style,
-            color,
-        }
-    }
-}
-
-impl<'html> Drawable<'html> for DrawText<'html> {
-    fn execute(&self, scroll: f32) {
-        let context = CONTEXT.with(|context| context.clone());
-        let font = format!("{} {} {}px serif", self.style, self.weight, self.size);
-        console::log_1(&JsValue::from_str(format!("{font}").as_str()));
-        context.set_font(&font);
-        context.set_fill_style(&JsValue::from_str(&self.color));
-        context
-            .fill_text(&self.text, self.left, self.top - scroll)
-            .unwrap();
-    }
-}
-
 struct LineLayout<'html> {
     node: Weak<Node<'html>>,
     parent: Weak<BlockLayout<'html>>,
@@ -630,18 +505,18 @@ impl<'html> Layout<'html> for LineLayout<'html> {
             .children
             .borrow()
             .iter()
-            .map(|word| -word.font.metrics().1.ascent)
+            .map(|word| -word.font.borrow().metrics().1.ascent)
             .reduce(f32::max)
             .unwrap();
         let baseline = dimension.y + 1.25 * max_ascent;
         self.children.borrow().iter().for_each(|word| {
-            word.dimension.borrow_mut().y = baseline + word.font.metrics().1.ascent
+            word.dimension.borrow_mut().y = baseline + word.font.borrow().metrics().1.ascent
         });
         let max_descent = self
             .children
             .borrow()
             .iter()
-            .map(|word| word.font.metrics().1.descent)
+            .map(|word| word.font.borrow().metrics().1.descent)
             .reduce(f32::max)
             .unwrap();
         dimension.height = 1.25 * (max_ascent + max_descent);
@@ -680,7 +555,6 @@ struct TextLayout<'html> {
 impl<'html> TextLayout<'html> {
     fn new(
         node: Weak<Node<'html>>,
-        font: RefCell<Font>,
         word: &'html str,
         parent: Weak<LineLayout<'html>>,
         previous: Option<Weak<TextLayout<'html>>>,
@@ -698,7 +572,7 @@ impl<'html> TextLayout<'html> {
 
 impl<'html> Layout<'html> for TextLayout<'html> {
     fn layout(self: Rc<Self>) {
-        let dimension = self.dimension.borrow_mut();
+        let mut dimension = self.dimension.borrow_mut();
         let upgrade_node = self.node.upgrade().unwrap();
         let styles = upgrade_node.style.borrow();
         let weight = styles.get("font-weight").unwrap().into();
@@ -715,7 +589,7 @@ impl<'html> Layout<'html> for TextLayout<'html> {
             dimension.x = self.parent.upgrade().unwrap().dimension.borrow().x;
         }
 
-        dimension.height = 
+        dimension.height = linespace(self.font.borrow().as_ref());
     }
 
     fn x(&self) -> f32 {
@@ -737,10 +611,4 @@ impl<'html> Layout<'html> for TextLayout<'html> {
     fn children(&self) -> Ref<'_, Vec<Rc<BlockLayout<'html>>>> {
         todo!()
     }
-}
-
-fn measure_text_width(text: &str, style: FontStyle, weight: FontWeight, size: f32) -> f32 {
-    let context = CONTEXT.with(|ctx| ctx.clone());
-    context.set_font(&format!("{} {} {}px serif", style, weight, size.round()));
-    context.measure_text(text).unwrap().width()
 }
