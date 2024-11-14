@@ -3,16 +3,12 @@ using Browser.Html;
 
 namespace Browser.Layouts;
 
-public sealed class LineLayout : Layout
+public sealed class LineLayout(
+    HtmlNode node,
+    Layout? parent = null,
+    Layout? previous = null)
+    : Layout(node, parent, previous)
 {
-    public LineLayout(HtmlNode node, Layout? parent = null,
-        Layout? previous = null)
-    {
-        Node = node;
-        Parent = parent;
-        Previous = previous;
-    }
-
     public override void CalculateLayout()
     {
         Width = Parent!.Width;
@@ -27,33 +23,13 @@ public sealed class LineLayout : Layout
             Height = 0;
             return;
         }
-
         var maxAscent =
-            Children.Select(word =>
-                {
-                    return word switch
-                    {
-                        TextLayout textLayout => textLayout.Font.Metrics.Ascent,
-                        InputLayout inputLayout => inputLayout.Font.Metrics
-                            .Ascent,
-                        _ => 0
-                    };
-                })
-                .Max();
-        var maxDescent =
-            Children.Select(word =>
-                {
-                    return word switch
-                    {
-                        TextLayout textLayout => textLayout.Font.Metrics.Descent,
-                        InputLayout inputLayout => inputLayout.Font.Metrics.Descent,
-                        _ => 0
-                    };
-                })
-                .Max();
+            Children.Select(word => -word.Font!.Metrics.Ascent).Max();
+        var maxDescent = 
+            Children.Select(word => word.Font!.Metrics.Descent).Max();
         var baseline = Y + 1.25f * maxAscent;
         Children.ForEach(word =>
-            word.Y = baseline + word.Font.Metrics.Ascent);
+            word.Y = baseline + word.Font!.Metrics.Ascent);
         Height = 1.25f * (maxAscent + maxDescent);
     }
 

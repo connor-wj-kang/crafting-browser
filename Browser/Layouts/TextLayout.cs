@@ -5,39 +5,29 @@ using SkiaSharp;
 
 namespace Browser.Layouts;
 
-public sealed class TextLayout : Layout
+public sealed class TextLayout(
+    HtmlNode node,
+    string word,
+    Layout? parent = null,
+    Layout? previous = null)
+    : Layout(node, parent, previous)
 {
-    public new readonly TextLayout? Previous;
-    public readonly string Word;
-    public required SKFont Font;
-
-    public TextLayout(HtmlNode node, string word, Layout? parent = null,
-        TextLayout? previous = null)
-    {
-        Node = node;
-        Word = word;
-        Parent = parent;
-        Previous = previous;
-    }
-
     public override void CalculateLayout()
     {
         var weight = Node.Styles["font-weight"];
         var style = Node.Styles["font-style"];
-        var size = (float)(Convert.ToDouble(Node.Styles["font-size"][..^2]) *
-                           0.75);
+        var size = FontUtils.ParseFontSize(Node.Styles["font-size"][..^2]);
         Font = FontUtils.GetFont(size, weight, style);
-        Width = Font.MeasureText(Word);
+        Width = Font.MeasureText(word);
         if (Previous != null)
         {
-            var spaceWidth = Previous.Font.MeasureText(" ");
+            var spaceWidth = Previous.Font!.MeasureText(" ");
             X = Previous.X + spaceWidth + Previous.Width;
         }
         else
         {
             X = Parent!.X;
         }
-
         Height = FontUtils.GetLineHeight(Font);
     }
 
@@ -45,7 +35,7 @@ public sealed class TextLayout : Layout
     {
         var drawCommands = new List<DrawCommand>();
         var color = Node.Styles["color"];
-        drawCommands.Add(new DrawText(X, Y, Word, Font, color));
+        drawCommands.Add(new DrawText(X, Y, word, Font!, color));
         return drawCommands;
     }
 

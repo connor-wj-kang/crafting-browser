@@ -11,10 +11,13 @@ public enum LayoutMode
     Block
 }
 
-public sealed class BlockLayout : Layout
+public sealed class BlockLayout(
+    HtmlNode node,
+    Layout? parent = null,
+    Layout? previous = null)
+    : Layout(node, parent, previous)
 {
-    private float _cursorX = 0;
-    public List<LineLayout> Children;
+    private float _cursorX;
 
     private static readonly string[] BlockElements =
     [
@@ -25,14 +28,6 @@ public sealed class BlockLayout : Layout
         "figcaption", "main", "div", "table", "form", "fieldset",
         "legend", "details", "summary"
     ];
-
-    public BlockLayout(HtmlNode node, Layout? parent = null,
-        Layout? previous = null)
-    {
-        Node = node;
-        Parent = parent;
-        Previous = previous;
-    }
 
     private void Recurse(HtmlNode node)
     {
@@ -49,15 +44,12 @@ public sealed class BlockLayout : Layout
             case HtmlElement { TagName: "br" }:
                 NewLine();
                 break;
-            case HtmlElement { TagName: "input" }:
+            case HtmlElement { TagName: "input" } or HtmlElement { TagName: "button" }:
                 Input(node);
                 break;
             default:
             {
-                foreach (var child in node.Children)
-                {
-                    Recurse(child); 
-                }
+                node.Children.ForEach(Recurse);
                 break;
             }
         }
@@ -71,7 +63,7 @@ public sealed class BlockLayout : Layout
         }
         else if (Node.Children.Exists(child =>
                      child is HtmlElement htmlElement &&
-                    BlockElements.Contains( htmlElement.TagName)))
+                    BlockElements.Contains(htmlElement.TagName)))
         {
             return LayoutMode.Block;
         } else if (Node.Children.Count != 0 ||
@@ -90,8 +82,7 @@ public sealed class BlockLayout : Layout
     {
         var weight = node.Styles["font-weight"];
         var style = node.Styles["font-style"];
-        var size = (float)(Convert.ToDouble(node.Styles["font-size"][..^2]) *
-                           0.75);
+        var size = FontUtils.ParseFontSize(node.Styles["font-size"][..^2]);
         var font = FontUtils.GetFont(size, weight, style);
         var width = font.MeasureText(word);
         if (_cursorX + width > Width) NewLine();
@@ -112,8 +103,7 @@ public sealed class BlockLayout : Layout
         line.Children.Add(input);
         var weight = node.Styles["font-weight"];
         var style = node.Styles["font-style"];
-        var size = (float)(Convert.ToDouble(node.Styles["font-size"][..^2]) *
-                           0.75);
+        var size = FontUtils.ParseFontSize(node.Styles["font-size"][..^2]);
         var font = FontUtils.GetFont(size, weight, style);
         _cursorX += width + font.MeasureText(" ");
     }
@@ -126,11 +116,10 @@ public sealed class BlockLayout : Layout
         Children.Add(newLine);
     }
 
-    private SKRect GetBlockRectangle()
+    private SKRect GetBlockLayoutRectangle()
     {
         return new SKRect(X, Y, X + Width, Y + Height);
     }
-    
 
     public override void CalculateLayout()
     {
@@ -144,7 +133,6 @@ public sealed class BlockLayout : Layout
         {
             Y = Parent.Y;
         }
-
         var mode = GetLayoutMode();
         if (mode == LayoutMode.Block)
         {
@@ -172,7 +160,7 @@ public sealed class BlockLayout : Layout
         if (bgColor == "transparent") return drawCommands;
         var radius = (float)Convert.ToDouble(
             Node.Styles.GetValueOrDefault("border-radius", "0px")[0..^2]);
-        drawCommands.Add(new DrawRoundRectangle(GetBlockRectangle(), radius, bgColor));
+        drawCommands.Add(new DrawRoundRectangle(GetBlockLayoutRectangle(), radius, bgColor));
         return drawCommands;
     }
 
@@ -184,6 +172,6 @@ public sealed class BlockLayout : Layout
     public override List<DrawCommand> PaintEffects(List<DrawCommand> drawCommands)
     {
         return Blend.PaintVisualEffects(Node, drawCommands,
-            GetBlockRectangle());
+            GetBlockLayoutRectangle());
     }
 }

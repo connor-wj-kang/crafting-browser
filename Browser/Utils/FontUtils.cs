@@ -30,4 +30,9 @@ public static class FontUtils
         var metrics = font.Metrics;
         return metrics.Descent - metrics.Ascent;
     }
+
+    public static float ParseFontSize(string fontSize)
+    {
+        return (float)Convert.ToDouble(fontSize) * 0.75f;
+    }
 }

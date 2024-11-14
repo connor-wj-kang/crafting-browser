@@ -5,40 +5,34 @@ using SkiaSharp;
 
 namespace Browser.Layouts;
 
-public class InputLayout : Layout
+public class InputLayout(
+    HtmlNode node,
+    Layout? parent = null,
+    Layout? previous = null)
+    : Layout(node, parent, previous)
 {
     public const float InputWidthPx = 200;
-    public SKFont Font = new SKFont();
-
-    public InputLayout(HtmlNode node, Layout? parent = null,
-        Layout? previous = null)
-    {
-        Node = node;
-        Parent = parent;
-        Previous = previous;
-    }
 
     public override void CalculateLayout()
     {
         var weight = Node.Styles["font-weight"];
         var style = Node.Styles["font-style"];
-        var size = (float)(Convert.ToDouble(Node.Styles["font-size"][..^2]) *
-                           0.75);
+        var size = FontUtils.ParseFontSize(Node.Styles["font-size"][..^2]);
         Font = FontUtils.GetFont(size, weight, style);
         Width = InputWidthPx;
         Height = FontUtils.GetLineHeight(Font);
-        if (Previous is TextLayout previous)
+        if (Previous != null)
         {
-            var spaceWidth = previous.Font.MeasureText(" ");
+            var spaceWidth = Previous.Font!.MeasureText(" ");
             X = Previous.X + spaceWidth + Previous.Width;
         }
-        else if (Parent != null)
+        else 
         {
-            X = Parent.X;
+            X = Parent!.X;
         }
     }
 
-    public SKRect GetInputRectangle()
+    private SKRect GetInputLayoutRectangle()
     {
         return new SKRect(X, Y, X + Width, Y + Height);
     }
@@ -52,7 +46,7 @@ public class InputLayout : Layout
         {
             var radius = (float)Convert.ToDouble(
                 Node.Styles.GetValueOrDefault("border-radius", "0px")[..^2]);
-            drawCommands.Add(new DrawRoundRectangle(GetInputRectangle(), radius,
+            drawCommands.Add(new DrawRoundRectangle(GetInputLayoutRectangle(), radius,
                 bgColor));
         }
 
@@ -73,9 +67,9 @@ public class InputLayout : Layout
         }
 
         var color = Node.Styles["color"];
-        drawCommands.Add(new DrawText(X, Y, text, Font, color));
+        drawCommands.Add(new DrawText(X, Y, text, Font!, color));
         if (!Node.IsFocused) return drawCommands;
-        var cursorX = X + Font.MeasureText(text);
+        var cursorX = X + Font!.MeasureText(text);
         drawCommands.Add(new DrawLine(cursorX, Y, cursorX, Y + Height,
             "black", 1));
         return drawCommands;
@@ -90,6 +84,6 @@ public class InputLayout : Layout
         List<DrawCommand> drawCommands)
     {
         return Blend.PaintVisualEffects(Node, drawCommands,
-            GetInputRectangle());
+            GetInputLayoutRectangle());
     }
 }
