@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)skiasharp.views\3.118.0-preview.1.2\buildTransitive\net462\SkiaSharp.Views.targets" Condition="Exists('$(NuGetPackageRoot)skiasharp.views\3.118.0-preview.1.2\buildTransitive\net462\SkiaSharp.Views.targets')" />
+  </ImportGroup>
+</Project>

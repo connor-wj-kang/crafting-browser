@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SkiaSharp" Version="3.118.0-preview.1.2"/>
+        <PackageReference Include="SkiaSharp.Views" Version="3.118.0-preview.1.2"/>
+        <PackageReference Include="SkiaSharp.Views.WPF" Version="3.118.0-preview.1.2"/>
+    </ItemGroup>
+
+</Project>
