@@ -174,12 +174,12 @@ public class CssParser(string css)
             parentFontSize = node.Parent != null
                 ? node.Parent.Styles["font-size"]
                 : InheritedProperties["font-size"];
-            var percentage =
+            var nodePercentage =
                 (float)Convert.ToDouble(node.Styles["font-size"][..^1]) / 100;
             var parentPercentage =
                 (float)Convert.ToDouble(parentFontSize[..^2]);
             node.Styles["font-size"] =
-                percentage * parentPercentage + "px";
+                nodePercentage * parentPercentage + "px";
         }
 
         foreach (var child in node.Children) ApplyCss(child, rules);
