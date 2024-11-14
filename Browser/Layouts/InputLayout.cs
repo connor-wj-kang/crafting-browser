@@ -8,10 +8,10 @@ namespace Browser.Layouts;
 public class InputLayout : Layout
 {
     public const float InputWidthPx = 200;
-    public required SKFont Font;
+    public SKFont Font = new SKFont();
 
     public InputLayout(HtmlNode node, Layout? parent = null,
-        InputLayout? previous = null)
+        Layout? previous = null)
     {
         Node = node;
         Parent = parent;
@@ -27,7 +27,7 @@ public class InputLayout : Layout
         Font = FontUtils.GetFont(size, weight, style);
         Width = InputWidthPx;
         Height = FontUtils.GetLineHeight(Font);
-        if (Previous is InputLayout previous)
+        if (Previous is TextLayout previous)
         {
             var spaceWidth = previous.Font.MeasureText(" ");
             X = Previous.X + spaceWidth + Previous.Width;
@@ -89,6 +89,7 @@ public class InputLayout : Layout
     public override List<DrawCommand> PaintEffects(
         List<DrawCommand> drawCommands)
     {
-        throw new NotImplementedException();
+        return Blend.PaintVisualEffects(Node, drawCommands,
+            GetInputRectangle());
     }
 }

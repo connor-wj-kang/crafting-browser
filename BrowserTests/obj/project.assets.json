@@ -982,32 +982,24 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\conno\\.nuget\\packages\\": {},
-    "D:\\vstudioshared\\NuGetPackages": {}
+    "C:\\Users\\notebook\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\conno\\RiderProjects\\Browser\\Browser\\BrowserTests\\BrowserTests.csproj",
+      "projectUniqueName": "C:\\Users\\notebook\\RiderProjects\\crafting-browser\\BrowserTests\\BrowserTests.csproj",
       "projectName": "BrowserTests",
-      "projectPath": "C:\\Users\\conno\\RiderProjects\\Browser\\Browser\\BrowserTests\\BrowserTests.csproj",
-      "packagesPath": "C:\\Users\\conno\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\conno\\RiderProjects\\Browser\\Browser\\BrowserTests\\obj\\",
+      "projectPath": "C:\\Users\\notebook\\RiderProjects\\crafting-browser\\BrowserTests\\BrowserTests.csproj",
+      "packagesPath": "C:\\Users\\notebook\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\notebook\\RiderProjects\\crafting-browser\\BrowserTests\\obj\\",
       "projectStyle": "PackageReference",
-      "UsingMicrosoftNETSdk": false,
-      "fallbackFolders": [
-        "D:\\vstudioshared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\conno\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "C:\\Users\\notebook\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -1024,7 +1016,7 @@
       "restoreAuditProperties": {
         "enableAudit": "true",
         "auditLevel": "low",
-        "auditMode": "direct"
+        "auditMode": "all"
       }
     },
     "frameworks": {
@@ -1063,12 +1055,26 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.11, 8.0.11]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.11, 8.0.11]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.11, 8.0.11]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.403/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

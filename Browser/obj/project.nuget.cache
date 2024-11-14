@@ -1,17 +1,21 @@
 {
   "version": 2,
-  "dgSpecHash": "monJo4zZEMc=",
+  "dgSpecHash": "yHt/BH+ewUA=",
   "success": true,
-  "projectFilePath": "C:\\Users\\conno\\RiderProjects\\Browser\\Browser\\Browser\\Browser.csproj",
+  "projectFilePath": "C:\\Users\\notebook\\RiderProjects\\crafting-browser\\Browser\\Browser.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\conno\\.nuget\\packages\\opentk\\3.3.1\\opentk.3.3.1.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\opentk.glwpfcontrol\\3.3.0\\opentk.glwpfcontrol.3.3.0.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp\\3.118.0-preview.1.2\\skiasharp.3.118.0-preview.1.2.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp.nativeassets.macos\\3.118.0-preview.1.2\\skiasharp.nativeassets.macos.3.118.0-preview.1.2.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp.nativeassets.win32\\3.118.0-preview.1.2\\skiasharp.nativeassets.win32.3.118.0-preview.1.2.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp.views\\3.118.0-preview.1.2\\skiasharp.views.3.118.0-preview.1.2.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp.views.desktop.common\\3.118.0-preview.1.2\\skiasharp.views.desktop.common.3.118.0-preview.1.2.nupkg.sha512",
-    "C:\\Users\\conno\\.nuget\\packages\\skiasharp.views.wpf\\3.118.0-preview.1.2\\skiasharp.views.wpf.3.118.0-preview.1.2.nupkg.sha512"
+    "C:\\Users\\notebook\\.nuget\\packages\\opentk\\3.3.1\\opentk.3.3.1.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\opentk.glwpfcontrol\\3.3.0\\opentk.glwpfcontrol.3.3.0.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp\\3.118.0-preview.1.2\\skiasharp.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp.nativeassets.macos\\3.118.0-preview.1.2\\skiasharp.nativeassets.macos.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp.nativeassets.win32\\3.118.0-preview.1.2\\skiasharp.nativeassets.win32.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp.views\\3.118.0-preview.1.2\\skiasharp.views.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp.views.desktop.common\\3.118.0-preview.1.2\\skiasharp.views.desktop.common.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\skiasharp.views.wpf\\3.118.0-preview.1.2\\skiasharp.views.wpf.3.118.0-preview.1.2.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.11\\microsoft.netcore.app.ref.8.0.11.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.11\\microsoft.windowsdesktop.app.ref.8.0.11.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.11\\microsoft.aspnetcore.app.ref.8.0.11.nupkg.sha512",
+    "C:\\Users\\notebook\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.11\\microsoft.netcore.app.host.win-x64.8.0.11.nupkg.sha512"
   ],
   "logs": [
     {

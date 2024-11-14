@@ -5,8 +5,6 @@ namespace Browser.Layouts;
 
 public sealed class LineLayout : Layout
 {
-    public new readonly List<TextLayout> Children = [];
-
     public LineLayout(HtmlNode node, Layout? parent = null,
         Layout? previous = null)
     {
@@ -31,10 +29,27 @@ public sealed class LineLayout : Layout
         }
 
         var maxAscent =
-            Children.Select(word => -word.Font.Metrics.Ascent)
+            Children.Select(word =>
+                {
+                    return word switch
+                    {
+                        TextLayout textLayout => textLayout.Font.Metrics.Ascent,
+                        InputLayout inputLayout => inputLayout.Font.Metrics
+                            .Ascent,
+                        _ => 0
+                    };
+                })
                 .Max();
         var maxDescent =
-            Children.Select(word => word.Font.Metrics.Descent)
+            Children.Select(word =>
+                {
+                    return word switch
+                    {
+                        TextLayout textLayout => textLayout.Font.Metrics.Descent,
+                        InputLayout inputLayout => inputLayout.Font.Metrics.Descent,
+                        _ => 0
+                    };
+                })
                 .Max();
         var baseline = Y + 1.25f * maxAscent;
         Children.ForEach(word =>

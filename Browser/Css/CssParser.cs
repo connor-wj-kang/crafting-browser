@@ -2,9 +2,9 @@
 
 namespace Browser.Css;
 
-public class CssParser(string css)
+public sealed class CssParser(string css)
 {
-    public static Dictionary<string, string> InheritedProperties = new()
+    private static readonly Dictionary<string, string> InheritedProperties = new()
     {
         { "font-size", "16px" },
         { "font-style", "normal" },
@@ -12,32 +12,31 @@ public class CssParser(string css)
         { "color", "black" }
     };
 
-    public readonly string Css = css;
-    public int Index;
+    private int _index;
 
     private void SkipWhiteSpace()
     {
-        while (Index < Css.Length && char.IsWhiteSpace(Css[Index])) Index += 1;
+        while (_index < css.Length && char.IsWhiteSpace(css[_index])) _index += 1;
     }
 
     private void SkipOneChar(char ch)
     {
-        if (!(Index < Css.Length && Css[Index] == ch))
+        if (!(_index < css.Length && css[_index] == ch))
             throw new Exception("Parsing error");
-        Index += 1;
+        _index += 1;
     }
 
     private string ParseWord()
     {
-        var start = Index;
-        while (Index < Css.Length)
-            if (char.IsAsciiLetterOrDigit(Css[Index]) ||
-                "#-.%".Contains(Css[Index]))
-                Index += 1;
+        var start = _index;
+        while (_index < css.Length)
+            if (char.IsAsciiLetterOrDigit(css[_index]) ||
+                "#-.%".Contains(css[_index]))
+                _index += 1;
             else
                 break;
-        if (!(Index > start)) throw new Exception("Parsing error");
-        return Css[start..Index];
+        if (!(_index > start)) throw new Exception("Parsing error");
+        return css[start.._index];
     }
 
     private (string, string) ParsePair()
@@ -52,11 +51,11 @@ public class CssParser(string css)
 
     private char? SkipUntil(char[] chars)
     {
-        while (Index < Css.Length)
+        while (_index < css.Length)
         {
-            if (chars.Contains(Css[Index])) return Css[Index];
+            if (chars.Contains(css[_index])) return css[_index];
 
-            Index += 1;
+            _index += 1;
         }
 
         return null;
@@ -65,7 +64,7 @@ public class CssParser(string css)
     private Dictionary<string, string> ParseBody()
     {
         var pairs = new Dictionary<string, string>();
-        while (Index < Css.Length && Css[Index] != '}')
+        while (_index < css.Length && css[_index] != '}')
             try
             {
                 var (prop, val) = ParsePair();
@@ -95,7 +94,7 @@ public class CssParser(string css)
     {
         Selector selector = new TagSelector(ParseWord().ToLower());
         SkipWhiteSpace();
-        while (Index < Css.Length && Css[Index] != '}')
+        while (_index < css.Length && css[_index] != '}')
         {
             var tagName = ParseWord().ToLower();
             var descendant = new TagSelector(tagName);
@@ -109,7 +108,7 @@ public class CssParser(string css)
     public List<(Selector, Dictionary<string, string>)> Parse()
     {
         var rules = new List<(Selector, Dictionary<string, string>)>();
-        while (Index < Css.Length)
+        while (_index < css.Length)
             try
             {
                 SkipWhiteSpace();
