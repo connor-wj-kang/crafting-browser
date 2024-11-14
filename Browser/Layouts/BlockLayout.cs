@@ -17,8 +17,6 @@ public sealed class BlockLayout(
     Layout? previous = null)
     : Layout(node, parent, previous)
 {
-    private float _cursorX;
-
     private static readonly string[] BlockElements =
     [
         "html", "body", "article", "section", "nav", "aside",
@@ -29,22 +27,24 @@ public sealed class BlockLayout(
         "legend", "details", "summary"
     ];
 
+    private float _cursorX;
+
     private void Recurse(HtmlNode node)
     {
         switch (node)
         {
             case HtmlText htmlText:
             {
-                foreach (var word in htmlText.Text.Split(' '))
-                {
-                    Word(node, word); 
-                }
+                foreach (var word in htmlText.Text.Split(' ')) Word(node, word);
                 break;
             }
             case HtmlElement { TagName: "br" }:
                 NewLine();
                 break;
-            case HtmlElement { TagName: "input" } or HtmlElement { TagName: "button" }:
+            case HtmlElement { TagName: "input" } or HtmlElement
+            {
+                TagName: "button"
+            }:
                 Input(node);
                 break;
             default:
@@ -57,25 +57,18 @@ public sealed class BlockLayout(
 
     private LayoutMode GetLayoutMode()
     {
-        if (Node is HtmlText)
-        {
-            return LayoutMode.Inline;
-        }
-        else if (Node.Children.Exists(child =>
-                     child is HtmlElement htmlElement &&
-                    BlockElements.Contains(htmlElement.TagName)))
-        {
+        if (Node is HtmlText) return LayoutMode.Inline;
+
+        if (Node.Children.Exists(child =>
+                child is HtmlElement htmlElement &&
+                BlockElements.Contains(htmlElement.TagName)))
             return LayoutMode.Block;
-        } else if (Node.Children.Count != 0 ||
-                   (Node is HtmlElement { TagName: "input" }))
-        {
+
+        if (Node.Children.Count != 0 ||
+            Node is HtmlElement { TagName: "input" })
             return LayoutMode.Inline;
-        }
-        else
-        {
-            return LayoutMode.Block;
-        }
-        
+
+        return LayoutMode.Block;
     }
 
     private void Word(HtmlNode node, string word)
@@ -97,7 +90,7 @@ public sealed class BlockLayout(
     {
         const float width = InputLayout.InputWidthPx;
         if (_cursorX + width > Width) NewLine();
-        var line = Children.Last(); 
+        var line = Children.Last();
         var previousWord = line.Children.LastOrDefault();
         var input = new InputLayout(node, line, previousWord);
         line.Children.Add(input);
@@ -126,13 +119,9 @@ public sealed class BlockLayout(
         Width = Parent!.Width;
         X = Parent.X;
         if (Previous != null)
-        {
             Y = Previous.Y + Previous.Height;
-        }
         else
-        {
             Y = Parent.Y;
-        }
         var mode = GetLayoutMode();
         if (mode == LayoutMode.Block)
         {
@@ -149,6 +138,7 @@ public sealed class BlockLayout(
             NewLine();
             Recurse(Node);
         }
+
         Children.ForEach(child => child.CalculateLayout());
         Height = Children.Select(child => child.Height).Sum();
     }
@@ -156,11 +146,13 @@ public sealed class BlockLayout(
     public override List<DrawCommand> Paint()
     {
         var drawCommands = new List<DrawCommand>();
-        var bgColor = Node.Styles.GetValueOrDefault("background-color", "transparent");
+        var bgColor = Node.Styles.GetValueOrDefault("background-color",
+            "transparent");
         if (bgColor == "transparent") return drawCommands;
         var radius = (float)Convert.ToDouble(
-            Node.Styles.GetValueOrDefault("border-radius", "0px")[0..^2]);
-        drawCommands.Add(new DrawRoundRectangle(GetBlockLayoutRectangle(), radius, bgColor));
+            Node.Styles.GetValueOrDefault("border-radius", "0px")[..^2]);
+        drawCommands.Add(new DrawRoundRectangle(GetBlockLayoutRectangle(),
+            radius, bgColor));
         return drawCommands;
     }
 
@@ -169,7 +161,8 @@ public sealed class BlockLayout(
         return true;
     }
 
-    public override List<DrawCommand> PaintEffects(List<DrawCommand> drawCommands)
+    public override List<DrawCommand> PaintEffects(
+        List<DrawCommand> drawCommands)
     {
         return Blend.PaintVisualEffects(Node, drawCommands,
             GetBlockLayoutRectangle());

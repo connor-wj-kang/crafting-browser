@@ -26,7 +26,7 @@ public class InputLayout(
             var spaceWidth = Previous.Font!.MeasureText(" ");
             X = Previous.X + spaceWidth + Previous.Width;
         }
-        else 
+        else
         {
             X = Parent!.X;
         }
@@ -46,7 +46,8 @@ public class InputLayout(
         {
             var radius = (float)Convert.ToDouble(
                 Node.Styles.GetValueOrDefault("border-radius", "0px")[..^2]);
-            drawCommands.Add(new DrawRoundRectangle(GetInputLayoutRectangle(), radius,
+            drawCommands.Add(new DrawRoundRectangle(GetInputLayoutRectangle(),
+                radius,
                 bgColor));
         }
 

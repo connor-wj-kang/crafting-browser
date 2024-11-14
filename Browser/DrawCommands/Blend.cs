@@ -5,30 +5,31 @@ namespace Browser.DrawCommands;
 
 public sealed class Blend : DrawCommand
 {
-    public readonly string BlendMode;
-    public readonly List<DrawCommand> Children;
-    public readonly float Opacity;
-    public readonly bool ShouldSave;
+    private readonly string _blendMode;
+    private readonly List<DrawCommand> _children;
+    private readonly float _opacity;
+    private readonly bool _shouldSave;
 
     public Blend(float opacity, string blendMode, List<DrawCommand> children)
     {
-        Opacity = opacity;
-        BlendMode = blendMode;
-        ShouldSave = blendMode != "" || Opacity < 1;
-        Children = children;
+        _opacity = opacity;
+        _blendMode = blendMode;
+        _shouldSave = blendMode != "" || _opacity < 1;
+        _children = children;
         Rectangle = SKRect.Empty;
-        Children.ForEach(command => Rectangle.Union(command.Rectangle));
+        _children.ForEach(child => Rectangle.Union(child.Rectangle));
     }
 
     public override void Draw(SKCanvas canvas)
     {
         var paint = new SKPaint
         {
-            BlendMode = ParseBlendMode(BlendMode)
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, _opacity),
+            BlendMode = ParseBlendMode(_blendMode)
         };
-        if (ShouldSave) canvas.SaveLayer(paint);
-        Children.ForEach(command => command.Draw(canvas));
-        if (ShouldSave) canvas.Restore();
+        if (_shouldSave) canvas.SaveLayer(paint);
+        _children.ForEach(child => child.Draw(canvas));
+        if (_shouldSave) canvas.Restore();
     }
 
     public static SKBlendMode ParseBlendMode(string blendMode)
@@ -59,7 +60,6 @@ public sealed class Blend : DrawCommand
         if (blendMode == "") blendMode = "source-over";
         drawCommands.Add(new Blend(1.0f, "destination-in",
             [new DrawRoundRectangle(rectangle, borderRadius, "white")]));
-
         return [new Blend(opacity, blendMode, drawCommands)];
     }
 }

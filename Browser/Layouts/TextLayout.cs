@@ -1,7 +1,6 @@
 ﻿using Browser.DrawCommands;
 using Browser.Html;
 using Browser.Utils;
-using SkiaSharp;
 
 namespace Browser.Layouts;
 
@@ -28,6 +27,7 @@ public sealed class TextLayout(
         {
             X = Parent!.X;
         }
+
         Height = FontUtils.GetLineHeight(Font);
     }
 

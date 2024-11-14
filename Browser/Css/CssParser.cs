@@ -4,19 +4,21 @@ namespace Browser.Css;
 
 public sealed class CssParser(string css)
 {
-    private static readonly Dictionary<string, string> InheritedProperties = new()
-    {
-        { "font-size", "16px" },
-        { "font-style", "normal" },
-        { "font-weight", "normal" },
-        { "color", "black" }
-    };
+    private static readonly Dictionary<string, string> InheritedProperties =
+        new()
+        {
+            { "font-size", "16px" },
+            { "font-style", "normal" },
+            { "font-weight", "normal" },
+            { "color", "black" }
+        };
 
     private int _index;
 
     private void SkipWhiteSpace()
     {
-        while (_index < css.Length && char.IsWhiteSpace(css[_index])) _index += 1;
+        while (_index < css.Length && char.IsWhiteSpace(css[_index]))
+            _index += 1;
     }
 
     private void SkipOneChar(char ch)
@@ -73,7 +75,7 @@ public sealed class CssParser(string css)
                 SkipOneChar(';');
                 SkipWhiteSpace();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 var why = SkipUntil([';', '}']);
                 if (why == ';')
@@ -119,7 +121,7 @@ public sealed class CssParser(string css)
                 SkipOneChar('}');
                 rules.Add((selector, body));
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 var why = SkipUntil(['}']);
                 if (why == '}')
@@ -169,8 +171,7 @@ public sealed class CssParser(string css)
 
         if (node.Styles["font-size"].EndsWith('%'))
         {
-            var parentFontSize = "";
-            parentFontSize = node.Parent != null
+            var parentFontSize = node.Parent != null
                 ? node.Parent.Styles["font-size"]
                 : InheritedProperties["font-size"];
             var nodePercentage =
@@ -181,6 +182,6 @@ public sealed class CssParser(string css)
                 nodePercentage * parentPercentage + "px";
         }
 
-        foreach (var child in node.Children) ApplyCss(child, rules);
+        node.Children.ForEach(child => ApplyCss(child, rules));
     }
 }

@@ -4,7 +4,7 @@ namespace Browser.Utils;
 
 public static class FontUtils
 {
-    public static readonly Dictionary<(string, string), SKTypeface> Fonts =
+    private static readonly Dictionary<(string, string), SKTypeface> Fonts =
         new();
 
     public static SKFont GetFont(float size, string weight, string style)
