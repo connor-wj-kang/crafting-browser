@@ -46,14 +46,12 @@ public class HtmlParser(string html)
                 {
                     inTag = true;
                     if (source != "") ParseText(source);
-                    Console.WriteLine(source);
                     source = "";
                     break;
                 }
                 case '>':
                     inTag = false;
                     ParseElement(source);
-                    Console.WriteLine(source);
                     source = "";
                     break;
                 default:
